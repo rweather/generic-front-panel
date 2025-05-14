@@ -34,7 +34,7 @@ FP_PORT_OUT equ 1
 
 ;
 ; Address of a 64-byte region of RAM to use when staging data to and
-; from the front panel.  Must be aligned on a 256-byte page boundary.
+; from the front panel.  Must be aligned on a 64-byte page boundary.
 ;
 FP_ADDR equ $F000
 
@@ -76,12 +76,12 @@ FP_REG4 equ R15
 ; are passed in FP_REG1 to the subroutines below to indicate where to start
 ; drawing on the display.
 ;
-FP_DISP_1 equ 0
-FP_DISP_2 equ 8
-FP_DISP_3 equ 16
-FP_DISP_4 equ 24
-FP_DISP_5 equ 32
-FP_DISP_6 equ 40
+FP_DISP_1 equ LOW(FP_ADDR)
+FP_DISP_2 equ LOW(FP_ADDR+8)
+FP_DISP_3 equ LOW(FP_ADDR+16)
+FP_DISP_4 equ LOW(FP_ADDR+24)
+FP_DISP_5 equ LOW(FP_ADDR+32)
+FP_DISP_6 equ LOW(FP_ADDR+40)
 
 ;
 ; Keycodes.
@@ -143,7 +143,7 @@ FP_ALL_ON_EXIT:
 FP_ALL_ON:
         ldi     HIGH(FP_ADDR)
         phi     FP_REG1
-        ldi     56
+        ldi     LOW(FP_ADDR+56)
         plo     FP_REG1
         sex     FP_REG1
         ldi     0
@@ -284,7 +284,7 @@ FP_DRAW_STRING:
         plo     FP_REG4
 FP_DRAW_STRING_LOOP:
         plo     FP_REG1
-        sdi     48
+        sdi     FP_DISP_6+8
         bdf     FP_DRAW_STRING_EXIT
         sex     FP_PTR
         ldxa
@@ -301,7 +301,6 @@ FP_DRAW_STRING_LOOP:
 ; value will be returned.
 ;
 FP_GET_KEY_EXIT:
-        sex     FP_SP
         sep     FP_RET
 FP_GET_KEY:
         ldi     HIGH(FP_GET_KEY_INNER)
@@ -312,13 +311,14 @@ FP_GET_KEY:
         br      FP_GET_KEY_EXIT
 ;
 FP_GET_KEY_INNER_EXIT:
+        sex     FP_SP
         sep     FP_CALL
 FP_GET_KEY_INNER:
         ldi     HIGH(FP_ADDR)
         phi     FP_REG2
         ldi     0
         plo     FP_REG1
-        ldi     $1E
+        ldi     LOW(FP_ADDR+$1E)
         plo     FP_REG2
         sex     FP_REG2
 ;
@@ -329,7 +329,7 @@ FP_GET_KEY_INNER:
 ;
         ldi     4
         plo     FP_REG1
-        ldi     $1D
+        ldi     LOW(FP_ADDR+$1D)
         plo     FP_REG2
         inp     FP_PORT_IN
         xri     $0F
@@ -338,7 +338,7 @@ FP_GET_KEY_INNER:
 ;
         ldi     8
         plo     FP_REG1
-        ldi     $1B
+        ldi     LOW(FP_ADDR+$1B)
         plo     FP_REG2
         inp     FP_PORT_IN
         xri     $0F
@@ -347,7 +347,7 @@ FP_GET_KEY_INNER:
 ;
         ldi     12
         plo     FP_REG1
-        ldi     $17
+        ldi     LOW(FP_ADDR+$17)
         plo     FP_REG2
         inp     FP_PORT_IN
         xri     $0F
@@ -356,7 +356,7 @@ FP_GET_KEY_INNER:
 ;
         ldi     16
         plo     FP_REG1
-        ldi     $07
+        ldi     LOW(FP_ADDR+$0F)
         plo     FP_REG2
         inp     FP_PORT_IN
         xri     $07
