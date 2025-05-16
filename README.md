@@ -32,9 +32,6 @@ instead.
 * [PDF of the schematic](schematics/Generic_Front_Panel/PDF/Generic_Front_Panel.pdf)
 * [Gerber files for manufacture](schematics/Generic_Front_Panel/Gerbers)
 
-I have some spare PCB's that I had made by PCBway.  Send me an e-mail
-at the address below and I'll post you one if I have any left.
-
 ## Parts list
 
 * 1 x Generic Front Panel FP-01 PCB
@@ -43,15 +40,20 @@ at the address below and I'll post you one if I have any left.
 * 6 x 74HC259 addressable latch (74LS259 or 74HCT239 can be substituted)
 * 6 x 100nF ceramic or monolithic capacitor
 * 5 x 100pF ceramic capacitor
-* 1 x 47uF electrolytic capacitor, rated for 6.3V or better
+* 1 x 100uF electrolytic capacitor, rated for 6.3V or better
 * 6 x 470 ohm DIP-16 resistor array
-* 5 x 470 ohm resistor
+* 5 x 4.7K ohm resistor
 * 1 x 220 ohm resistor (series resistor for 5mm power LED, adjust value for the LED's current rating)
 * 1 x 5mm LED for the power LED (color is up to you)
 * 6 x MAN71A 7-segment LED display (TIL-312 or Broadcom 5082-7611 can be substituted)
 * 5 x 1N4148 diode
 * 20 x 12mm push button plus keycaps
 * 1 x 20-pin 2.54mm pitch terminal header or socket for the J1 connector
+
+I recommend using DIP-14 sockets for the 7-segment LED displays to
+raise the height of the displays up to roughly level with the top of the
+push buttons plus keycaps.  Sockets for the other IC's are up to you;
+I didn't bother.
 
 ## 20-pin connector
 
@@ -86,9 +88,10 @@ The connector on the bottom of the PCB has the following pins:
 To interface to your homebrew computer, you will need to provide address
 decoding for the two "chip select" lines "Select Display" and "Select Keypad".
 
-You can put the front panel anywhere in memory or I/O space.  Only the
-bottom 6 address bits are provided to the front panel.  You need to
-decode the upper 10 bits (of a 16-bit address) yourself by some means.
+You can put the front panel anywhere in memory or I/O space that is
+aligned on a 64-byte boundary.  Only the bottom 6 address bits are
+provided to the front panel.  You need to decode the upper 10 bits
+(of a 16-bit address) yourself by some means.
 
 "Select Display" should be low when the top-most bits of the address
 match the location in memory where you want to put the display,

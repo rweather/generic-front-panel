@@ -20071,7 +20071,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Value" "47uF"
+		(property "Value" "100uF"
 			(at 1.25 -4.4 0)
 			(layer "B.Fab")
 			(uuid "a23952cf-8722-4a62-9b89-f86419cc0cad")
