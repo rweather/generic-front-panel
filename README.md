@@ -27,6 +27,9 @@ back side.  The inline current limiting resistors are specified as 8-way
 resistor arrays.  However, you could fit 8 regular resistors side by side
 instead.
 
+The front panel draws about 250mA from the 5V rail when all 48 segments
+in the 7-segment displays and the power LED are lit.  About 5mA per segment.
+
 ## Schematic and gerber files
 
 * [PDF of the schematic](schematics/Generic_Front_Panel/PDF/Generic_Front_Panel.pdf)
