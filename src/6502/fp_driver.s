@@ -237,6 +237,9 @@ FP_DRAW_STRING_DONE:
 ; if no key is currently pressed.  If multiple keys are pressed, then the
 ; key with the lowest numeric value will be returned.
 ;
+; There is no debouncing in this function so the keys may be a little jumpy.
+; FP_WAIT_KEY implements debouncing.
+;
 ; Destroys A.  Preserves X and Y.
 ;
 FP_GET_KEY:
@@ -295,19 +298,49 @@ FP_GET_KEY_NONE:
         rts
 
 ;
-; Wait for a key to be pressed and then released.
+; Wait for a key to be pressed and then released.  Returns the key in A.
+;
+; This function implements debouncing of the key, with the key reported
+; once the release has been fully debounced.
 ;
 ; Destroys A.  Preserves X and Y.
 ;
+FP_DEBOUNCE_COUNT .equ 255
 FP_WAIT_KEY:
+    .ifdef CPU_65C02
+        phy
+    .else
+        tya
+        pha
+    .endif
+FP_WAIT_KEY_LOOP:
         jsr     FP_GET_KEY
         cmp     #FP_KEY_NONE
-        beq     FP_WAIT_KEY
+        beq     FP_WAIT_KEY_LOOP
+FP_CHANGE_KEYS:
         sta     FP_TEMP_PTR
+        ldy     #FP_DEBOUNCE_COUNT
 FP_WAIT_RELEASE:
         jsr     FP_GET_KEY
+        cmp     #FP_KEY_NONE
+        beq     FP_WAIT_KEY_LOOP    ; Release during the debounce period.
         cmp     FP_TEMP_PTR
-        beq     FP_WAIT_RELEASE
+        bne     FP_CHANGE_KEYS      ; Switched to another key during debounce.
+        dey                         ; Have we debounced the press?
+        bne     FP_WAIT_RELEASE
+        ldy     #FP_DEBOUNCE_COUNT  ; Now to debounce the release.
+FP_WAIT_RELEASE_LOOP:
+        jsr     FP_GET_KEY
+        cmp     #FP_KEY_NONE
+        bne     FP_WAIT_RELEASE_LOOP
+        dey                         ; Have we debounced the release?
+        bne     FP_WAIT_RELEASE_LOOP
+    .ifdef CPU_65C02
+        ply
+    .else
+        pla
+        tay
+    .endif
         lda     FP_TEMP_PTR
         rts
 

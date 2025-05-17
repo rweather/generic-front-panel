@@ -69,10 +69,9 @@ loop:
         ldx     #FP_DISP_1
         jsr     FP_DRAW_STRING
 ;
-        lda     #$C0
-        ldy     #0
+        lda     #0
+        tay
 digit_delay:
-        nop
         adc     #1
         bne     digit_delay
         dey
