@@ -8,10 +8,17 @@ wired up to the breadboard computer as follows:
 
 <img alt="Wiring for 6502" src="wiring.png"/>
 
-The example scrolls "HELLORLD!" followed by the printable ASCII characters
+The example scrolls "HELLORLD" followed by the printable ASCII characters
 across the display from right to left.
 
 Press any key except RESET to stop the scrolling message.  Keys pressed
 after that (except RESET) will be shown on the display, scrolling in from
-the right.  This allows all keys on the keypad to be tested.  Press RESET
-to start again with the scrolling message.
+the right.  This allows all keys on the keypad to be tested.  The three
+command keys will be displayed as G, H, and I.
+
+Press RESET to start again with the scrolling message.
+
+Here it is connected to my version of Ben Eater's 6502 Breadboard Computer,
+shown here after I typed ABCDEF on the keypad:
+
+<img alt="Front Panel Connected to 6502 Computer" src="front-panel-6502.jpg"/>
