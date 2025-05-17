@@ -69,9 +69,10 @@ loop:
         ldx     #FP_DISP_1
         jsr     FP_DRAW_STRING
 ;
-        lda     #0
-        tay
+        lda     #$C0
+        ldy     #0
 digit_delay:
+        nop
         adc     #1
         bne     digit_delay
         dey
@@ -117,9 +118,11 @@ next_key:
         ora     #$30
         bne     add_char
 to_letter:
-        adc     #$46
+        adc     #$36
 add_char:
         sta     BUFFER+5        ; Add the new character on the right.
+        ldy     #<BUFFER
+        lda     #>BUFFER
         ldx     #FP_DISP_1
         jsr     FP_DRAW_STRING  ; Redraw the buffer's contents.
 ;
@@ -129,13 +132,13 @@ add_char:
 ; Message to display.  See "https://github.com/Nakazoto/Hellorld/wiki" for why.
 ;
 message:
-        .db     "HELLORLD!      "
+        .db     "      HELLORLD      "
 ;
 ; Follow the main message with the printable ASCII characters.
 ;
         .db     "!",$22,"#$%&'()*+,-./0123456789:;<=>?"
         .db     "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[",$5C,"]^_"
-        .db     "`abcdefghijklmnopqrstuvwxyz{|}~"
+        .db     "`abcdefghijklmnopqrstuvwxyz{|}~",$7F
         .db     "      "
 message_end:
         .db     0

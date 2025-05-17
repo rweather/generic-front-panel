@@ -50,7 +50,7 @@ R15 equ	15
 ; Message to display.  See "https://github.com/Nakazoto/Hellorld/wiki" for why.
 ;
 message:
-        db      "HELLORLD!      "
+        db      "      HELLORLD!      "
 ;
 ; Follow the main message with the printable ASCII characters.
 ;
