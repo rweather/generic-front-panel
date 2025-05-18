@@ -2,7 +2,18 @@ Generic Front Panel
 ===================
 
 This repository contains schematics and other information for a generic
-front panel for 8-bit homebrew computers.  The front panel provides:
+front panel for 8-bit homebrew computers.
+
+Here it is connected to my version of
+[Ben Eater's 6502 Breadboard Computer](https://eater.net/6502),
+running the "hello.s" example from the "src/6502" directory.
+It is shown here after I typed ABCDEF on the keypad:
+
+<img alt="Front Panel Connected to 6502 Computer" src="src/6502/front-panel-6502.jpg"/>
+
+## Features
+
+The generic front panel has the following features:
 
 * 6-digit seven segment display.
 * 16-digit hexadecimal keypad.
@@ -30,10 +41,17 @@ instead.
 The front panel draws about 250mA from the 5V rail when all 48 segments
 in the 7-segment displays and the power LED are lit.  About 5mA per segment.
 
+I have provided drivers and examples for various CPU's under the
+"src" directory.  Patches welcome for other CPU's and homebrew boards.
+
 ## Schematic and gerber files
 
 * [PDF of the schematic](schematics/Generic_Front_Panel/PDF/Generic_Front_Panel.pdf)
 * [Gerber files for manufacture](schematics/Generic_Front_Panel/Gerbers)
+
+The dimensions of the PCB are 195mm x 90mm.  Five 3mm mounting holes are
+provided for mounting behind a face plate: four corners and one in the
+centre for added strength.
 
 ## Parts list
 
@@ -57,6 +75,16 @@ I recommend using DIP-14 sockets for the 7-segment LED displays to
 raise the height of the displays up to roughly level with the top of the
 push buttons plus keycaps.  Sockets for the other IC's are up to you;
 I didn't bother.
+
+Labels can be applied to the keycaps using a label maker and clear labels.
+
+This is what the front and back of the PCB looks like once assembled
+(I had only done a very basic board clean at this point so it is still a
+little smudgy):
+
+<img alt="Front Panel Assembled Front" src="images/front-panel-assembled-front.jpg"/>
+
+<img alt="Front Panel Assembled Back" src="images/front-panel-assembled-back.jpg"/>
 
 ## 20-pin connector
 
@@ -84,7 +112,7 @@ The connector on the bottom of the PCB has the following pins:
 <tr><td>18</td><td>Reset (active low)</td></tr>
 <tr><td>19</td><td>GND</td></tr>
 <tr><td>20</td><td>GND</td></tr>
-<table>
+</table>
 
 ## Chip selects
 
