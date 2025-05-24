@@ -54,28 +54,29 @@ FP_DISP_5 .equ 32
 FP_DISP_6 .equ 40
 
 ;
-; Keycodes.
+; Keycodes, which are mapped to ASCII characters 0..9, A..I where
+; CMD1, CMD2, and CMD3 are mapped to G, H, and I respectively.
 ;
-FP_KEY_0 .equ 0
-FP_KEY_1 .equ 1
-FP_KEY_2 .equ 2
-FP_KEY_3 .equ 3
-FP_KEY_4 .equ 4
-FP_KEY_5 .equ 5
-FP_KEY_6 .equ 6
-FP_KEY_7 .equ 7
-FP_KEY_8 .equ 8
-FP_KEY_9 .equ 9
-FP_KEY_A .equ 10
-FP_KEY_B .equ 11
-FP_KEY_C .equ 12
-FP_KEY_D .equ 13
-FP_KEY_E .equ 14
-FP_KEY_F .equ 15
-FP_KEY_CMD1 .equ 16    ; CMD1 key.
-FP_KEY_CMD2 .equ 17    ; CMD2 key.
-FP_KEY_CMD3 .equ 18    ; CMD3 key.
-FP_KEY_NONE .equ 255   ; No key pressed.
+FP_KEY_0 .equ $30
+FP_KEY_1 .equ $31
+FP_KEY_2 .equ $32
+FP_KEY_3 .equ $33
+FP_KEY_4 .equ $34
+FP_KEY_5 .equ $35
+FP_KEY_6 .equ $36
+FP_KEY_7 .equ $37
+FP_KEY_8 .equ $38
+FP_KEY_9 .equ $39
+FP_KEY_A .equ $41
+FP_KEY_B .equ $42
+FP_KEY_C .equ $43
+FP_KEY_D .equ $44
+FP_KEY_E .equ $45
+FP_KEY_F .equ $46
+FP_KEY_CMD1 .equ $47   ; CMD1 key.
+FP_KEY_CMD2 .equ $48   ; CMD2 key.
+FP_KEY_CMD3 .equ $49   ; CMD3 key.
+FP_KEY_NONE .equ 0     ; No key pressed.
 
 ;
 ; Clear the display.  Preserves A, X, and Y.
@@ -105,6 +106,7 @@ FP_CLEAR_LOOP:
     .endif
         rts
 
+    .ifndef FP_MINIMAL
 ;
 ; Turn on all segments on the display.  Preserves A, X, and Y.
 ;
@@ -162,6 +164,7 @@ FP_DRAW_NIBBLE:
         bcc     FP_DRAW_CHAR
         adc     #6
         ; Fall through to the next subroutine.
+    .endif
 
 ;
 ; Draw an ASCII character.  A contains the character and X contains the
@@ -172,28 +175,32 @@ FP_DRAW_NIBBLE:
 ; X can be one of FP_DISP_1, FP_DISP_2, FP_DISP_3, FP_DISP_4, FP_DISP_5,
 ; or FP_DISP_6.  Any other value will give unexpected results.
 ;
-; Only ASCII characters $20 to $7F can be drawn.  Anything else will
-; produce garbage.
+; The high bit of A can be set to draw the character with a decimal point.
+; For example, $C1 is A with a decimal point.  $00 to $1F and $80 to $9F
+; will produce garbage, but all other characters will draw something.
 ;
 FP_DRAW_CHAR:
-    .ifdef CPU_65C02
-        pha
-        phy
-        tay
-    .else
         sta     FP_TEMP
         pha
+    .ifdef CPU_65C02
+        phy
+    .else
         tya
         pha
-        ldy     FP_TEMP
+        lda     FP_TEMP
     .endif
+        and     #$7F
+        tay
         lda     FP_BITMAPS-32,y
+        ldy     FP_TEMP
+        bpl     FP_DRAW_CHAR_2
+        and     #$7F            ; Turn on the decimal point.
+FP_DRAW_CHAR_2:
         sta     FP_TEMP
         ldy     #8
 FP_DRAW_SEGMENT:
-        lda     #0
         lsr     FP_TEMP
-        adc     #0
+        rol     a
         sta     FP_ADDR,x
         inx
         dey
@@ -208,6 +215,7 @@ FP_DRAW_SEGMENT:
     .endif
         rts
 
+    .ifndef FP_MINIMAL
 ;
 ; Draw an ASCII string on the display.  A:Y points at the string, with the
 ; high byte of the address in A and the low byte of the address in Y.
@@ -231,11 +239,12 @@ FP_DRAW_STRING_LOOP:
         bne     FP_DRAW_STRING_LOOP
 FP_DRAW_STRING_DONE:
         rts
+    .endif
 
 ;
-; Get the key that is currently pressed into A.  Returns FP_KEY_NONE
-; if no key is currently pressed.  If multiple keys are pressed, then the
-; key with the lowest numeric value will be returned.
+; Get the key that is currently pressed into A.  Returns 0 if no key is
+; currently pressed.  If multiple keys are pressed, then the key with the
+; lowest numeric value will be returned.
 ;
 ; There is no debouncing in this function so the keys may be a little jumpy.
 ; FP_WAIT_KEY implements debouncing.
@@ -292,6 +301,12 @@ FP_GET_KEY_FIND_BIT:
         bcs     FP_GET_KEY_DONE
         adc     #1
 FP_GET_KEY_DONE:
+        clc                     ; Convert the key into ASCII.
+        adc     #$30
+        cmp     #$3A
+        bcc     FP_GET_KEY_RETURN
+        adc     #6
+FP_GET_KEY_RETURN:
         rts
 FP_GET_KEY_NONE:
         lda     #FP_KEY_NONE

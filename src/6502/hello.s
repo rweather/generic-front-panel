@@ -112,13 +112,6 @@ next_key:
         lda     BUFFER+5
         sta     BUFFER+4
         jsr     FP_WAIT_KEY     ; Wait for a key to be pressed.
-        cmp     #10             ; Convert into ASCII.
-        bcs     to_letter
-        ora     #$30
-        bne     add_char
-to_letter:
-        adc     #$36
-add_char:
         sta     BUFFER+5        ; Add the new character on the right.
         ldy     #<BUFFER
         lda     #>BUFFER
