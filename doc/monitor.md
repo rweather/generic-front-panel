@@ -60,10 +60,10 @@ From here, the hexadecimal keypad can be used to select a function:
 * "C" enters the default examine / change mode.
 * "D" (or "do") starts executing programs.
 * "E" changes the examine address.
+* "5" enters single-step mode.
 
 All other keys act the same as "C".  They may be assigned functions
-in the future.  The Heathkit also had functions for setting breakpoints and
-single-stepping through code.
+in the future.  The Heathkit also had a function for setting breakpoints.
 
 ## Examine / Change
 
@@ -105,7 +105,7 @@ mode at the newly selected address.
 
 Press "Func" and then "A" to inspect the registers starting with the
 accumulator.  Use "Next" and "Prev" to move to another register, or
-enter hexadecimal digits to alter the current register.
+enter hexadecimal digits to alter the register's value.
 
 <img src="led-reg-A.png"/>
 
@@ -133,6 +133,17 @@ When the code returns with a "RTS" instruction, the system will pause
 waiting for a key to be pressed.  This allows the user to see the last
 thing that the program printed on the display before erasing it and
 re-entering the monitor.
+
+## Single Stepping
+
+Press "Func" and then "5" to enter single-step mode.  The current
+value of "PC" is displayed, plus the opcode byte at that address:
+
+<img src="led-step.png"/>
+
+Pressing either "Next" or "Prev" will step the instruction and then
+display the next instruction; and so on.  Pressing any other key will
+return to the monitor or function menu.
 
 ## Breakpoints
 

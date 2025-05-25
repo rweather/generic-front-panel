@@ -22,3 +22,7 @@ Here it is connected to my version of Ben Eater's 6502 Breadboard Computer,
 shown here after I typed ABCDEF on the keypad:
 
 <img alt="Front Panel Connected to 6502 Computer" src="front-panel-6502.jpg"/>
+
+The "monitor.s" file implements a machine code monitor for 6502 computers
+in just 2K of ROM space.  More information is in the
+[documentation for the monitor](../../doc/monitor.md).

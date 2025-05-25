@@ -36,6 +36,7 @@
 ;       C - Change
 ;       D - Do
 ;       E - Examine
+;       5 - Single Step
 ;
 ; After "Reset", the words "CPU UP" will be displayed.  Press any key
 ; except "Func" or "Reset" to shift to "C" / "Change" mode.  "Func" will
@@ -61,6 +62,10 @@
 ; Press "Next" or "Prev" to start executing ("doing") the code at PC.
 ; Or press "Func" to select a different function.
 ;
+; In "5" / "Single Step" mode, the current instruction at "PC" is displayed.
+; Press "Next" or "Prev" to step the instruction, then show the next one.
+; Pressing any other key will abort back to the monitor or main menu.
+;
 
 ;
 ; Locations between $20 and $4F in the zero page are reserved for the monitor.
@@ -85,6 +90,7 @@ H_RESET .equ    $36         ; Address of the user's soft reset handler.
 H_CHKS  .equ    $38         ; Checksum over the last 8 bytes.
 H_ICHKS .equ    $39         ; Inverted version of the value at H_CHKS.
 DISPLAY .equ    $3A         ; Display buffer (6 bytes).
+STEPBUF .equ    $40         ; Single-step instruction buffer (max 9 bytes).
 
 ;
 ; Map command keycodes to more useful names.
@@ -96,6 +102,7 @@ K_REGS  .equ    FP_KEY_A    ; Show accumulator and other registers.
 K_CHG   .equ    FP_KEY_C    ; "Change" / "Modify" bytes.
 K_DO    .equ    FP_KEY_D    ; "Do" / "Run" from address.
 K_EXAM  .equ    FP_KEY_E    ; Examine address.
+K_STEP  .equ    FP_KEY_5    ; Single-step.
 
 ;
 ; Default value to write to "REG_PC" on a cold start, as the first
@@ -189,14 +196,18 @@ verify_irq_checksum:
 ;
 cold_start:
 ;
-; Clear the entire zero page so that it is in a known state.
+; Clear the zero page and stack so that they are in a known state.
+;
+; Having zero bytes on the stack means that an errant "RTS" is likely to
+; jump to address $0001 in memory and most likely execute a "BRK".
 ;
         ldx     #0
-        lda     #0
-clear_zero_page:
-        sta     0,x
+        txa
+clear_zero_page_and_stack:
+        sta     $0000,x
+        sta     $0100,x
         inx
-        bne     clear_zero_page
+        bne     clear_zero_page_and_stack
 ;
 ; Save the stack pointer.
 ;
@@ -599,8 +610,6 @@ monitor_reset:
         cmp     #K_FUNC
         beq     ask_for_function
         jmp     monitor
-reset_msg:
-        .db     "CPU UP", 0
 
 ;
 ; Wait for a keypress and then enter the machine monitor.
@@ -707,12 +716,14 @@ ask_for_function_2:
         beq     goto_inspect_registers
         cmp     #K_DO           ; "D" / "Do" to start running from PC onwards.
         beq     do_run
+        cmp     #K_STEP         ; "5" / "Single-Step" to step through the code.
+        beq     do_step
 goto_monitor:
         jmp     monitor
 goto_inspect_registers:
         jmp     inspect_registers
-function_msg:
-        db      "Func  ",0
+do_step:
+        jmp     single_step
 
 ;
 ; Examine mode - ask for a new address.
@@ -905,6 +916,14 @@ to_hex_done:
         rts
 
 ;
+; Messages.
+;
+reset_msg:
+        .db     "CPU UP", 0
+function_msg:
+        db      "Func  ",0
+
+;
 ; Update "REG_PC" by shifting in the hexadecimal digit in A.
 ;
 update_pc:
@@ -1041,6 +1060,7 @@ break:
 ;
 ; Display the break address on the display.
 ;
+display_break:
         jsr     clear_display
         lda     #$62            ; "b"
         jsr     draw_char
@@ -1074,6 +1094,323 @@ irqbrk_handler:
 do_break:
         lda     REG_AQ          ; Restore A.
         jmp     (H_BREAK)       ; Jump to the user's BREAK handler.
+
+;
+; Single-step the next instruction at "PC".
+;
+single_step:
+        ldy     #0
+        lda     (REG_PC),y      ; Fetch the opcode.
+;
+; Fetch the corresponding single-stepping rule.  There are two rules
+; per byte in the table for even and odd opcodes.
+;
+        lsr     a
+        tax
+        lda     single_step_rules,x
+        bcc     step_even_opcode
+        lsr     a
+        lsr     a
+        lsr     a
+        lsr     a
+step_even_opcode:
+        and     #$0F
+        sta     M_TEMP          ; Rule is now in M_TEMP.
+        tax
+        lda     single_step_lengths,x
+        sta     REG1            ; Instruction length is now in REG1.
+        tay
+;
+; Copy the instruction to the zero page so it can be executed in isolation.
+;
+        dey
+copy_instruction:
+        lda     (REG_PC),y
+        sta     STEPBUF,y
+        dey
+        bpl     copy_instruction
+;
+; Display the current "PC" value and the opcode byte.
+;
+        jsr     clear_display
+        ldy     REG_PC
+        lda     REG_PC+1
+        jsr     draw_word
+        ldx     D_POSN          ; Add a decimal point to the last
+        dex                     ; character of the address field to act
+        lda     #0              ; as a separator between address and data.
+        sta     FP_ADDR,x
+        lda     STEPBUF
+        jsr     draw_byte
+;
+; Wait for a key to be pressed.  "Next" or "Prev" will step.
+; Everything else will return to the monitor to examine "PC".
+;
+        jsr     FP_WAIT_KEY
+        cmp     #K_NEXT
+        beq     single_step_now
+        cmp     #K_PREV
+        beq     single_step_now
+        ldx     REG_PC
+        stx     REG1
+        ldx     REG_PC+1
+        stx     REG1+1
+        cmp     #K_FUNC
+        beq     single_step_func
+        jmp     monitor
+single_step_func:
+        jmp     ask_for_function
+;
+; Update "PC" to skip over the current instruction.
+;
+single_step_now:
+        lda     REG_PC
+        clc
+        adc     REG1
+        sta     REG_PC
+        lda     REG_PC+1
+        adc     #0
+        sta     REG_PC+1
+;
+; Follow up the instruction with jumps back into the monitor for normal
+; execution and branching execution.
+;
+        ldy     REG1
+        lda     #$4C
+        sta     STEPBUF,y
+        sta     STEPBUF+3,y
+        lda     #<single_step_end
+        sta     STEPBUF+1,y
+        lda     #>single_step_end
+        sta     STEPBUF+2,y
+        lda     #<single_step_branch
+        sta     STEPBUF+4,y
+        lda     #>single_step_branch
+        sta     STEPBUF+5,y
+;
+; Determine how to handle the single-stepping rule.
+;
+        ldx     M_TEMP
+        lda     single_step_handlers_low-1,x
+        sta     REG2
+        lda     single_step_handlers_high-1,x
+        sta     REG2+1
+        jmp     (REG2)
+;
+single_step_handlers_low:
+        .db     <step_normal            ; Rule 1
+        .db     <step_normal            ; Rule 2
+        .db     <step_normal            ; Rule 3
+        .db     <step_illegal           ; Rule 4
+        .db     <step_relative_branch   ; Rule 5
+        .db     <step_indirect_jump     ; Rule 6
+        .db     <step_jsr               ; Rule 7
+        .db     <step_jmp               ; Rule 8
+        .db     <step_rts               ; Rule 9
+        .db     <step_rti               ; Rule 10
+        .db     <step_indirect_x_jump   ; Rule 11
+        .db     <step_relative_branch   ; Rule 12
+        .db     <step_break             ; Rule 13
+single_step_handlers_high:
+        .db     >step_normal            ; Rule 1
+        .db     >step_normal            ; Rule 2
+        .db     >step_normal            ; Rule 3
+        .db     >step_illegal           ; Rule 4
+        .db     >step_relative_branch   ; Rule 5
+        .db     >step_indirect_jump     ; Rule 6
+        .db     >step_jsr               ; Rule 7
+        .db     >step_jmp               ; Rule 8
+        .db     >step_rts               ; Rule 9
+        .db     >step_rti               ; Rule 10
+        .db     >step_indirect_x_jump   ; Rule 11
+        .db     >step_relative_branch   ; Rule 12
+        .db     >step_break             ; Rule 13
+;
+; Single-step a relative branch.
+;
+step_relative_branch:
+;
+; Re-write the instruction to jump over the normal exit if the branch is taken.
+;
+        lda     STEPBUF+1
+        sta     STEPBUF+8
+        lda     #$03
+        sta     STEPBUF+1
+        ; Fall through to the next case.
+;
+; Single-step a normal instruction that doesn't need special handling.
+;
+; Restore all registers and jump to the patched code at "STEPBUF".
+;
+step_normal:
+        ldx     REG_X
+        ldy     REG_Y
+        lda     REG_P
+        pha
+        lda     REG_A
+        plp
+        jmp     STEPBUF
+;
+; Single-step an illegal instruction.  The instruction is treated as a "NOP".
+;
+step_illegal .equ single_step
+;
+; Single-step an indirect jump with X offset.
+;
+step_indirect_x_jump:
+        lda     REG_X               ; Add "X" to the indirect jump address.
+        clc
+        adc     STEPBUF+1
+        sta     STEPBUF+1
+        lda     STEPBUF+2
+        adc     #0
+        sta     STEPBUF+2
+        ; Fall through to the next subroutine.
+;
+; Single-step an indirect jump.
+;
+step_indirect_jump:
+        lda     STEPBUF+1
+        sta     REG2
+        lda     STEPBUF+2
+        sta     REG2+1
+        ldy     #0
+        lda     (REG2),y
+        sta     REG_PC
+        iny
+        lda     (REG2),y
+        sta     REG_PC+1
+        jmp     single_step
+;
+; Single-step a jump to subroutine.
+;
+step_jsr:
+        lda     STEPBUF+2
+;
+; If this is a call to a monitor routine, then call it directly rather
+; than single-step into it.  Usually such routines draw characters on the
+; display or wait for input.  Single-stepping monitor routines will act weird.
+;
+        cmp     #$F8
+        bcs     step_normal
+        lda     REG_PC
+        sec
+        sbc     #1
+        tax
+        lda     REG_PC+1
+        sbc     #0
+        pha
+    .ifdef CPU_65C02
+        phx
+    .else
+        txa
+        pha
+    .endif
+        ; Fall through to the next subroutine.
+;
+; Single-step an unconditional branch to a 16-bit address.
+;
+step_jmp:
+        lda     STEPBUF+1
+        sta     REG_PC
+        lda     STEPBUF+2
+        sta     REG_PC+1
+        jmp     single_step
+;
+; Single-step a return from subroutine.
+;
+step_rts:
+        pla
+        clc
+        adc     #1
+        sta     REG_PC
+        pla
+        adc     #0
+        sta     REG_PC+1
+        jmp     single_step
+;
+; Single-step a return from interrupt.
+;
+step_rti:
+        pla
+        sta     REG_P
+        pla
+        sta     REG_PC
+        pla
+        sta     REG_PC+1
+        jmp     single_step
+;
+; Single-step a "BRK" instruction.
+;
+step_break:
+        lda     REG_PC          ; Back up to the location of the "BRK".
+        sec
+        sbc     #1
+        sta     REG_PC
+        lda     REG_PC+1
+        sbc     #0
+        sta     REG_PC+1
+        jmp     display_break
+;
+; Continue execution after a normal instruction finishes single-stepping.
+;
+; Save all registers and then go around for the next instruction.
+;
+single_step_end:
+        sta     REG_A
+        stx     REG_X
+        sty     REG_Y
+        php
+        pla
+        sta     REG_P
+        tsx
+        stx     REG_SP
+        cld
+        cli
+        jmp     single_step
+;
+; Continue execution after a branch instruction branches during single-stepping.
+;
+; Save all registers and perform the branch.
+;
+single_step_branch:
+        sta     REG_A
+        stx     REG_X
+        sty     REG_Y
+        php
+        pla
+        sta     REG_P
+        tsx
+        stx     REG_SP
+        cld
+        cli
+        lda     STEPBUF+8
+        bmi     branch_backwards
+        clc
+        adc     REG_PC
+        sta     REG_PC
+        lda     REG_PC+1
+        adc     #0
+        sta     REG_PC+1
+        jmp     single_step
+branch_backwards:
+        clc
+        adc     REG_PC
+        sta     REG_PC
+        lda     REG_PC+1
+        adc     #$FF
+        sta     REG_PC+1
+        jmp     single_step
+
+;
+; Include the table of single-stepping rules.
+;
+        .include "steprules.s"
+;
+; Map single-stepping rules to the corresponding instruction length.
+;
+single_step_lengths:
+        .db     1, 1, 2, 3, 1, 2, 3, 3, 3, 1, 1, 3, 2, 1
 
 ;
 ; Include the front panel driver code.
