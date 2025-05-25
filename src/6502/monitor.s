@@ -1270,32 +1270,27 @@ step_indirect_x_jump:
 ; Single-step an indirect jump.
 ;
 step_indirect_jump:
-        lda     STEPBUF+1
-        sta     REG2
-        lda     STEPBUF+2
-        sta     REG2+1
         ldy     #0
-        lda     (REG2),y
+        lda     (STEPBUF+1),y
         sta     REG_PC
         iny
-        lda     (REG2),y
+        lda     (STEPBUF+1),y
         sta     REG_PC+1
         jmp     single_step
 ;
 ; Single-step a jump to subroutine.
 ;
 step_jsr:
-        lda     STEPBUF+2
 ;
 ; If this is a call to a monitor routine, then call it directly rather
 ; than single-step into it.  Usually such routines draw characters on the
 ; display or wait for input.  Single-stepping monitor routines will act weird.
 ;
+        lda     STEPBUF+2
         cmp     #$F8
         bcs     step_normal
         lda     REG_PC
-        sec
-        sbc     #1
+        sbc     #0
         tax
         lda     REG_PC+1
         sbc     #0
