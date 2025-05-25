@@ -26,6 +26,7 @@
 ; Variables in the zero page.
 ;
 MSG_INDEX .equ $20
+TEMP_PTR  .equ $28
 BUFFER    .equ $30
 
 ;
@@ -66,8 +67,7 @@ loop:
         tay
         lda     #>message
         adc     #0
-        ldx     #FP_DISP_1
-        jsr     FP_DRAW_STRING
+        jsr     draw_string
 ;
         lda     #0
         tay
@@ -115,10 +115,27 @@ next_key:
         sta     BUFFER+5        ; Add the new character on the right.
         ldy     #<BUFFER
         lda     #>BUFFER
-        ldx     #FP_DISP_1
-        jsr     FP_DRAW_STRING  ; Redraw the buffer's contents.
+        jsr     draw_string     ; Redraw the buffer's contents.
 ;
         jmp     next_key
+
+;
+; Draw the NUL-terminated string that is pointed to by A:Y.
+;
+draw_string:
+        sty     TEMP_PTR
+        sta     TEMP_PTR+1
+        ldx     #FP_DISP_1
+        ldy     #0
+draw_string_loop:
+        lda     (TEMP_PTR),y
+        beq     draw_string_end
+        jsr     FP_DRAW_CHAR
+        iny
+        cpx     #FP_DISP_6+1
+        bcc     draw_string_loop
+draw_string_end:
+        rts
 
 ;
 ; Message to display.  See "https://github.com/Nakazoto/Hellorld/wiki" for why.

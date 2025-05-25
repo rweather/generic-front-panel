@@ -62,10 +62,16 @@ message_end:
         db      0
 
 ;
-; Include the driver code and extend the FP_TO_HEX table at the end.
+; Table for converting nibbles into hexadecimal characters.  Extended to
+; also print the command keycodes as G, H, and I.
+;
+to_hex:
+        db      "0123456789ABCDEFGHI"
+
+;
+; Include the driver code.
 ;
         incl    "fp_driver.asm"
-        db      "GHI"
 
 ;
 ; Entry point for the program.
@@ -212,9 +218,9 @@ next_key:
         ldi     LOW(FP_WAIT_KEY)
         plo     FP_CALL
         sep     FP_CALL
-        adi     LOW(FP_TO_HEX)
+        adi     LOW(to_hex)
         plo     R9
-        ldi     HIGH(FP_TO_HEX)
+        ldi     HIGH(to_hex)
         adci    0
         phi     R9
         ldn     R9

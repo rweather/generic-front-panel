@@ -136,73 +136,6 @@ FP_CLEAR_LOOP:
         br      FP_CLEAR_EXIT
 
 ;
-; Turn on all segments on the display.
-;
-FP_ALL_ON_EXIT:
-        sep     FP_RET
-FP_ALL_ON:
-        ldi     HIGH(FP_ADDR)
-        phi     FP_REG1
-        ldi     LOW(FP_ADDR+56)
-        plo     FP_REG1
-        sex     FP_REG1
-        ldi     0
-        str     FP_REG1
-        out     FP_PORT_OUT
-        sex     FP_SP
-        br      FP_ALL_ON_EXIT
-
-;
-; Draw a byte on the display as two hexadecimal digits.  The byte is in D and
-; FP_REG1 is the position on the display to start at.
-;
-; The low byte of FP_REG1 will be advanced by two positions on the display.
-; The high byte of FP_REG1 will be destroyed.
-;
-; FP_REG1 can be one of FP_DISP_1, FP_DISP_2, FP_DISP_3, FP_DISP_4, or
-; FP_DISP_5.  Any other value will give unexpected results.
-;
-FP_DRAW_BYTE_EXIT:
-        sep     FP_RET
-FP_DRAW_BYTE:
-        phi     FP_REG3
-        ldi     HIGH(FP_DRAW_CHAR_INNER)
-        phi     FP_REG4
-        ldi     LOW(FP_DRAW_CHAR_INNER)
-        plo     FP_REG4
-;
-; Convert the high nibble into hexadecimal and display it.
-;
-        ghi     FP_REG3
-        shr
-        shr
-        shr
-        shr
-        adi     LOW(FP_TO_HEX)
-        plo     FP_REG2
-        ldi     HIGH(FP_TO_HEX)
-        adci    0
-        phi     FP_REG2
-        ldn     FP_REG2
-        sep     FP_REG4
-;
-; Convert the low nibble into hexadecimal and display it.
-;
-        ghi     FP_REG3
-        ani     15
-        adi     LOW(FP_TO_HEX)
-        plo     FP_REG2
-        ldi     HIGH(FP_TO_HEX)
-        adci    0
-        phi     FP_REG2
-        ldn     FP_REG2
-        sep     FP_REG4
-;
-; Return to the caller.
-;
-        br      FP_DRAW_BYTE_EXIT
-
-;
 ; Draw an ASCII character.  D contains the character and the low byte of
 ; FP_REG1 contains the offset of the 7-segment display to draw it on.
 ;
@@ -516,8 +449,3 @@ FP_BITMAPS:
         db      %10001111       ; $7D - }
         db      %11111110       ; $7E - ~
         db      %00000000       ; $7F - DEL (**)
-;
-; Table for converting nibbles into hexadecimal characters.
-;
-FP_TO_HEX:
-        db      "0123456789ABCDEF"

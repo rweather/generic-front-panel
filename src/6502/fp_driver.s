@@ -28,17 +28,13 @@ FP_ADDR .equ $4000
     .endif
 
 ;
-; Address in the zero page for a temporary 16-bit pointer.  Modify as needed.
-;
-    .ifndef FP_TEMP_PTR
-FP_TEMP_PTR .equ $2C
-    .endif
-
-;
-; Address in the zero page for a temporary 8-bit variable.  Modify as needed.
+; Address in the zero page for temporary 8-bit variables.  Modify as needed.
 ;
     .ifndef FP_TEMP
 FP_TEMP .equ $2E
+    .endif
+    .ifndef FP_TEMP2
+FP_TEMP2 .equ $2F
     .endif
 
 ;
@@ -106,66 +102,6 @@ FP_CLEAR_LOOP:
     .endif
         rts
 
-    .ifndef FP_MINIMAL
-;
-; Turn on all segments on the display.  Preserves A, X, and Y.
-;
-FP_ALL_ON:
-        sta     FP_ADDR+56
-        rts
-
-;
-; Draw a 16-bit word on the display as four hexadecimal digits.
-; The high byte of the address is in A and the low byte is in Y.
-; X is the position on the display to start at.
-;
-; Destroys A.  Preserves Y.  X is advanced by four positions on the display.
-;
-; X can be one of FP_DISP_1, FP_DISP_2, or FP_DISP_3.  Any other
-; value will give unexpected results.
-;
-FP_DRAW_WORD:
-        jsr     FP_DRAW_BYTE
-        tya
-        ; Fall through to the next subroutine.
-
-;
-; Draw a byte on the display as two hexadecimal digits.  The byte is in A and
-; X is the position on the display to start at.
-;
-; Destroys A.  X is advanced by two positions on the display.
-;
-; X can be one of FP_DISP_1, FP_DISP_2, FP_DISP_3, FP_DISP_4, or
-; FP_DISP_5.  Any other value will give unexpected results.
-;
-FP_DRAW_BYTE:
-        pha
-        lsr     a
-        lsr     a
-        lsr     a
-        lsr     a
-        jsr     FP_DRAW_NIBBLE
-        pla
-        ; Fall through to the next subroutine.
-
-;
-; Draw a hexadecimal nibble on the display.  The nibble is in the
-; low 4 bits of A and X is the position on the display.
-;
-; Destroys A.  X is advanced to the position of the next display digit.
-;
-; X can be one of FP_DISP_1, FP_DISP_2, FP_DISP_3, FP_DISP_4, FP_DISP_5,
-; or FP_DISP_6.  Any other value will give unexpected results.
-;
-FP_DRAW_NIBBLE:
-        and     #$0F
-        ora     #$30
-        cmp     #$3A
-        bcc     FP_DRAW_CHAR
-        adc     #6
-        ; Fall through to the next subroutine.
-    .endif
-
 ;
 ; Draw an ASCII character.  A contains the character and X contains the
 ; offset of the 7-segment display to draw it on.
@@ -214,32 +150,6 @@ FP_DRAW_SEGMENT:
         pla
     .endif
         rts
-
-    .ifndef FP_MINIMAL
-;
-; Draw an ASCII string on the display.  A:Y points at the string, with the
-; high byte of the address in A and the low byte of the address in Y.
-;
-; X is the position on the display to start drawing at.  Stops drawing when
-; either X goes off the end of the display or a NUL is seen in the string.
-;
-; Destroys A and Y.  X is advanced by the number of characters drawn.
-;
-FP_DRAW_STRING:
-        sty     FP_TEMP_PTR
-        sta     FP_TEMP_PTR+1
-        ldy     #0
-FP_DRAW_STRING_LOOP:
-        cpx     #(FP_DISP_6 + 1)
-        bcs     FP_DRAW_STRING_DONE
-        lda     (FP_TEMP_PTR),y
-        beq     FP_DRAW_STRING_DONE
-        jsr     FP_DRAW_CHAR
-        iny
-        bne     FP_DRAW_STRING_LOOP
-FP_DRAW_STRING_DONE:
-        rts
-    .endif
 
 ;
 ; Get the key that is currently pressed into A.  Returns 0 if no key is
@@ -333,13 +243,13 @@ FP_WAIT_KEY_LOOP:
         cmp     #FP_KEY_NONE
         beq     FP_WAIT_KEY_LOOP
 FP_CHANGE_KEYS:
-        sta     FP_TEMP_PTR
+        sta     FP_TEMP2
         ldy     #FP_DEBOUNCE_COUNT
 FP_WAIT_RELEASE:
         jsr     FP_GET_KEY
         cmp     #FP_KEY_NONE
         beq     FP_WAIT_KEY_LOOP    ; Release during the debounce period.
-        cmp     FP_TEMP_PTR
+        cmp     FP_TEMP2
         bne     FP_CHANGE_KEYS      ; Switched to another key during debounce.
         dey                         ; Have we debounced the press?
         bne     FP_WAIT_RELEASE
@@ -356,7 +266,7 @@ FP_WAIT_RELEASE_LOOP:
         pla
         tay
     .endif
-        lda     FP_TEMP_PTR
+        lda     FP_TEMP2
         rts
 
 ;

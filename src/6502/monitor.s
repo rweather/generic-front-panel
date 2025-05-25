@@ -1415,8 +1415,8 @@ single_step_lengths:
 ;
 ; Include the front panel driver code.
 ;
-FP_MINIMAL  .equ 1
 FP_TEMP     .equ TEMP1
+FP_TEMP2    .equ REG2+1
         .include "fp_driver.s"
 
         .org    $FFF9
