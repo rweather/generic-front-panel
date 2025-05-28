@@ -11,6 +11,14 @@ It is shown here after I typed ABCDEF on the keypad:
 
 <img alt="Front Panel Connected to 6502 Computer" src="src/6502/front-panel-6502.jpg"/>
 
+Here is a close-up of the front panel with a 3D-printed plate over the top:
+
+<img alt="Front Panel with Front Plate" src="images/front-panel-with-front-plate.jpg"/>
+
+The "print" directory contains an OpenSCAD file for the 3D-printable plate.
+My brother, who is into 3D-printing, has a textured print bed for his printer.
+He printed the plate upside down and the texturing gave the plate a nice finish.
+
 ## Features
 
 The generic front panel has the following features:
