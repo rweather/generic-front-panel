@@ -29,8 +29,8 @@
 ;
 ; Input and output ports to use to communicate with the front panel.
 ;
-FP_PORT_IN  equ 1
-FP_PORT_OUT equ 1
+FP_PORT_IN  equ 6
+FP_PORT_OUT equ 5
 
 ;
 ; Address of a 64-byte region of RAM to use when staging data to and
@@ -84,28 +84,29 @@ FP_DISP_5 equ LOW(FP_ADDR+32)
 FP_DISP_6 equ LOW(FP_ADDR+40)
 
 ;
-; Keycodes.
+; Keycodes, which are mapped to ASCII characters 0..9, A..I where
+; CMD1, CMD2, and CMD3 are mapped to G, H, and I respectively.
 ;
-FP_KEY_0 equ 0
-FP_KEY_1 equ 1
-FP_KEY_2 equ 2
-FP_KEY_3 equ 3
-FP_KEY_4 equ 4
-FP_KEY_5 equ 5
-FP_KEY_6 equ 6
-FP_KEY_7 equ 7
-FP_KEY_8 equ 8
-FP_KEY_9 equ 9
-FP_KEY_A equ 10
-FP_KEY_B equ 11
-FP_KEY_C equ 12
-FP_KEY_D equ 13
-FP_KEY_E equ 14
-FP_KEY_F equ 15
-FP_KEY_CMD1 equ 16      ; CMD1 key.
-FP_KEY_CMD2 equ 17      ; CMD2 key.
-FP_KEY_CMD3 equ 18      ; CMD3 key.
-FP_KEY_NONE equ 255     ; No key pressed.
+FP_KEY_0 equ $30
+FP_KEY_1 equ $31
+FP_KEY_2 equ $32
+FP_KEY_3 equ $33
+FP_KEY_4 equ $34
+FP_KEY_5 equ $35
+FP_KEY_6 equ $36
+FP_KEY_7 equ $37
+FP_KEY_8 equ $38
+FP_KEY_9 equ $39
+FP_KEY_A equ $41
+FP_KEY_B equ $42
+FP_KEY_C equ $43
+FP_KEY_D equ $44
+FP_KEY_E equ $45
+FP_KEY_F equ $46
+FP_KEY_CMD1 equ $47 ; CMD1 key.
+FP_KEY_CMD2 equ $48 ; CMD2 key.
+FP_KEY_CMD3 equ $49 ; CMD3 key.
+FP_KEY_NONE equ 0   ; No key pressed.
 
 ;
 ; Align on a 256-byte page boundary to ensure all branches are local.
@@ -144,8 +145,8 @@ FP_CLEAR_LOOP:
 ; FP_REG1 can be one of FP_DISP_1, FP_DISP_2, FP_DISP_3, FP_DISP_4, FP_DISP_5,
 ; or FP_DISP_6.  Any other value will give unexpected results.
 ;
-; Only ASCII characters $20 to $7F can be drawn.  Anything else will
-; produce garbage.
+; If bit 7 of D is set, then a decimal point will be added.  Only characters
+; $20 to $7F and $A0 to $FF can be drawn.  Anything else will produce garbage.
 ;
 FP_DRAW_CHAR_EXIT:
         sep     FP_RET
@@ -165,6 +166,8 @@ FP_DRAW_CHAR_INNER:
 ;
 ; Find the 7-segment bit pattern for the character.
 ;
+        phi     FP_REG3
+        ani     $7F             ; Remove the high bit.
         adi     LOW(FP_BITMAPS-32)
         plo     FP_REG2
         ldi     HIGH(FP_BITMAPS-32)
@@ -173,8 +176,18 @@ FP_DRAW_CHAR_INNER:
         ldn     FP_REG2
         plo     FP_REG2         ; Bit pattern is now in the low byte of FP_REG2.
 ;
+; Add the decimal point if the original character had bit 7 set.
+;
+        ghi     FP_REG3
+        shl
+        bnf     FP_DRAW_SEGMENTS
+        glo     FP_REG2
+        ani     $7F             ; Turn on the decimal point.
+        plo     FP_REG2
+;
 ; Shift the bits out one by one and write them to the display.
 ;
+FP_DRAW_SEGMENTS:
         ldi     HIGH(FP_ADDR)
         phi     FP_REG1
         sex     FP_REG1
@@ -216,9 +229,9 @@ FP_DRAW_STRING:
         ldi     LOW(FP_DRAW_CHAR_INNER)
         plo     FP_REG4
 FP_DRAW_STRING_LOOP:
-        plo     FP_REG1
-        sdi     FP_DISP_6+8
-        bdf     FP_DRAW_STRING_EXIT
+        glo     FP_REG1
+        sdi     FP_DISP_6+1
+        bnf     FP_DRAW_STRING_EXIT
         sex     FP_PTR
         ldxa
         bz      FP_DRAW_STRING_EXIT
@@ -226,12 +239,13 @@ FP_DRAW_STRING_LOOP:
         br      FP_DRAW_STRING_LOOP
 
 ;
-; Get the key that is currently pressed into the low byte of FP_REG1.
-; D is zero if a key is pressed.  D is set to FP_KEY_NONE if no key
-; is pressed.
+; Get the key that is currently pressed into D, or zero if no key is pressed.
 ;
 ; If multiple keys are pressed, then the key with the lowest numeric
 ; value will be returned.
+;
+; There is no debouncing in this function so the keys may be a little jumpy.
+; FP_WAIT_KEY implements debouncing.
 ;
 FP_GET_KEY_EXIT:
         sep     FP_RET
@@ -307,12 +321,17 @@ FP_GET_KEY_COLUMN:
         bdf     FP_GET_KEY_DONE
         inc     FP_REG1
 FP_GET_KEY_DONE:
-        ldi     0                   ; Set D to zero if we have a key.
+        glo     FP_REG1
+        adi     LOW(FP_KEY_TO_ASCII)
+        plo     FP_REG1
+        ldi     HIGH(FP_KEY_TO_ASCII)
+        adci    0
+        phi     FP_REG1
+        ldn     FP_REG1
         br      FP_GET_KEY_INNER_EXIT
 ;
 FP_GET_KEY_NONE:
         ldi     FP_KEY_NONE         ; Set D to FP_KEY_NONE for no key.
-        plo     FP_REG1
         br      FP_GET_KEY_INNER_EXIT
 
 ;
@@ -329,15 +348,23 @@ FP_WAIT_KEY:
 ;
 FP_WAIT_FOR_PRESS:
         sep     FP_REG4
-        bnz     FP_WAIT_FOR_PRESS
-        glo     FP_REG1
-        phi     FP_REG1
+        bz      FP_WAIT_FOR_PRESS
+        phi     FP_REG3     ; Key being debounced in high byte of REG3.
+        ldi     $40         ; Debounce counter in low byte of REG3.
+        plo     FP_REG3
+;
+FP_WAIT_FOR_DEBOUNCE:
+        sep     FP_REG4
+        bz      FP_WAIT_FOR_PRESS   ; Released before fully debounced.
+        dec     FP_REG3
+        glo     FP_REG3
+        bnz     FP_WAIT_FOR_DEBOUNCE
 ;
 FP_WAIT_FOR_RELEASE:
-        sep     FP_REG4
-        lbz     FP_WAIT_FOR_RELEASE
-        ghi     FP_REG1
-        lbr     FP_WAIT_KEY_EXIT
+        sep     FP_REG4     ; Debounced, now wait for all keys to be released.
+        bnz     FP_WAIT_FOR_RELEASE
+        ghi     FP_REG3     ; Return the originally pressed key.
+        br      FP_WAIT_KEY_EXIT
 
 ;
 ; 7-segment bit patterns for the ASCII characters $20 to $7E.
@@ -449,3 +476,8 @@ FP_BITMAPS:
         db      %10001111       ; $7D - }
         db      %11111110       ; $7E - ~
         db      %00000000       ; $7F - DEL (**)
+;
+; Table for converting key scan codes into ASCII.
+;
+FP_KEY_TO_ASCII:
+        db      "0123456789ABCDEFGHI"

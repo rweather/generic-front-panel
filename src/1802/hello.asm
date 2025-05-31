@@ -41,9 +41,16 @@ R14 equ	14
 R15 equ	15
 
 ;
+; Top of stack to set at startup time.
+;
+STACKTOP equ $FFFF
+
+;
 ; Origin at the start of ROM - jump over the driver code.
 ;
         org     $0000
+        dis                 ; Disable interrupts on reset.
+        db      0           ; Byte that is skipped by the disable process.
         lbr     init
 
 ;
@@ -56,17 +63,10 @@ message:
 ;
         db      "!",$22,"#$%&'()*+,-./0123456789:;<=>?"
         db      "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[",$5C,"]^_"
-        db      "`abcdefghijklmnopqrstuvwxyz{|}~"
+        db      "`abcdefghijklmnopqrstuvwxyz{|}~",$7F
         db      "      "
 message_end:
         db      0
-
-;
-; Table for converting nibbles into hexadecimal characters.  Extended to
-; also print the command keycodes as G, H, and I.
-;
-to_hex:
-        db      "0123456789ABCDEFGHI"
 
 ;
 ; Include the driver code.
@@ -77,8 +77,9 @@ to_hex:
 ; Entry point for the program.
 ;
 init:
-        ldi     $FF         ; Point the stack pointer to end of RAM at $FFFF.
+        ldi     HIGH(STACKTOP)  ; Set the initial stack pointer in R2.
         phi     R2
+        ldi     LOW(STACKTOP)
         plo     R2
         sex     R2
 ;
@@ -112,7 +113,7 @@ loop:
         ldi     LOW(FP_GET_KEY)
         plo     FP_CALL
         sep     FP_CALL
-        bz      read_keys
+        bnz     read_keys
 ;
 ; Display the message at its current offset.
 ;
@@ -132,7 +133,7 @@ loop:
 ;
 ; Perform a delay before moving onto the next scroll position.
 ;
-        ldi     32
+        ldi     24
         plo     R9
         phi     R9
 digit_delay:
@@ -146,7 +147,7 @@ digit_delay:
         adi     1
         plo     R8
         sdi     message_end-message-5
-        bnf     loop
+        bdf     loop
         br      init_loop
 
 ;
@@ -218,12 +219,6 @@ next_key:
         ldi     LOW(FP_WAIT_KEY)
         plo     FP_CALL
         sep     FP_CALL
-        adi     LOW(to_hex)
-        plo     R9
-        ldi     HIGH(to_hex)
-        adci    0
-        phi     R9
-        ldn     R9
         str     R7
         ldi     LOW(buffer)
         plo     R7
